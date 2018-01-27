@@ -1,4 +1,5 @@
 require('./models/user');
+require('./models/survey');
 require('./services/passport');
 
 const express = require('express');
