@@ -48,3 +48,5 @@ class Mailer extends helper.Mail {
       return response;
   }
 }
+
+module.exports = Mailer;

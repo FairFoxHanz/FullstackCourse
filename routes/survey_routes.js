@@ -1,17 +1,19 @@
 const mongoose = require("mongoose");
 const requireLogin = require("../middlewares/require_login");
 const requireCredits = require("../middlewares/require_credits");
-const Mailer = require('../services/mailer');
-const surveyTemplate = require('../services/emailTemplates/surveyTemplate');
+const Mailer = require("../services/mailer");
+const surveyTemplate = require("../services/emailTemplates/surveyTemplate");
 
 const Survey = mongoose.model("surveys");
 
 module.exports = app => {
-  app.get("/api/surveys", (req, res) => {});
+  app.get("/api/surveys/thanks", (req, res) => {
+    res.send("Thanks for voting!");
+  });
 
   app.post("/api/surveys/webhooks", (req, res) => {});
 
-  app.post("/api/surveys", requireLogin, requireCredits, (req, res) => {
+  app.post("/api/surveys", requireLogin, requireCredits, async (req, res) => {
     const { title, subject, body, recipients } = req.body;
 
     const survey = new Survey({
@@ -22,7 +24,17 @@ module.exports = app => {
       _user: req.user.id,
       dateSent: Date.now()
     });
+    
+    try {
+      const mailer = new Mailer(survey, surveyTemplate(survey));
+      await mailer.send();
+      await survey.save();
+      req.user.credit -= 1;
+      const user = await req.user.save();
+    } catch (error) {
+      res.status(422).send(error);
+    }
 
-    const mailer = new Mailer(survey, surveyTemplate(survey));
+    res.send(user);
   });
 };
