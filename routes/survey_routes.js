@@ -15,7 +15,7 @@ module.exports = app => {
   });
 
   app.post("/api/surveys/webhooks", (req, res) => {
-    const events = _.map(req.body, ({email, url}) => {
+    const events = _.map(req.body, ({ email, url }) => {
       const pathname = new URL(url).pathname;
       const p = new Path("/api/surveys/:surveyId/:choice");
       const match = p.test(pathname);
@@ -27,11 +27,15 @@ module.exports = app => {
         };
       }
     });
+
+    const compactEvents = _.compact(events);
+    const uniqueEvents = _.uniqBy(compactEvents, "email", "surveyId");
+    console.log(uniqueEvents);
   });
 
   app.post("/api/surveys", requireLogin, requireCredits, async (req, res) => {
     const { title, subject, body, recipients } = req.body;
-
+    
     const survey = new Survey({
       title,
       body,
@@ -41,16 +45,17 @@ module.exports = app => {
       dateSent: Date.now()
     });
 
+    const mailer = new Mailer(survey, surveyTemplate(survey));
+
     try {
-      const mailer = new Mailer(survey, surveyTemplate(survey));
       await mailer.send();
       await survey.save();
-      req.user.credit -= 1;
+      req.user.credits -= 1;
       const user = await req.user.save();
+      
+      res.send(user);
     } catch (error) {
       res.status(422).send(error);
     }
-
-    res.send(user);
   });
 };
